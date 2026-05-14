@@ -1,0 +1,12 @@
+Connection String (URI): postgresql://postgres.kvbrvecjclufyylnohrh:[Icywind6729!]@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres
+
+Project URL: https://kvbrvecjclufyylnohrh.supabase.co/rest/v1/
+
+anon public key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2YnJ2ZWNqY2x1Znl5bG5vaHJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NDkyNTQsImV4cCI6MjA5NDIyNTI1NH0.msir6U0ozvGJAIUdGGZ26_d2kYXPvmC5jxf2Hb-HOg4
+
+Client ID: 845671640205-6gfkqs4h8ileoo20ol1c7un1fd739dfu.apps.googleusercontent.com
+
+Client Secret: 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
+
+git remote add origin https://github.com/ginnymones/workload-tracker.git
+git push -u origin main

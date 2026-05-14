@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workload Tracker — Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-card: #1f2937;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted: #8892a4;
+      --accent: #818cf8;
+      --accent-button: #4f46e5;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --border: #334155;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .banner {
+      background: rgba(129, 140, 248, 0.1);
+      border-bottom: 1px solid rgba(129, 140, 248, 0.2);
+      padding: 10px 16px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-secondary);
+      position: relative;
+    }
+    .banner strong { color: var(--accent); }
+    .banner-close {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px;
+    }
+
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(26, 26, 46, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+    }
+
+    .container { max-width: 1152px; margin: 0 auto; padding: 0 16px; }
+
+    .header-content { display: flex; align-items: center; justify-content: space-between; }
+    .header-title { font-size: 18px; font-weight: 600; }
+    .header-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .toggle-group {
+      display: flex; background: var(--bg-secondary); border-radius: 8px; padding: 2px;
+    }
+    .toggle-btn {
+      padding: 6px 12px; font-size: 12px; font-weight: 500; border: none;
+      border-radius: 6px; cursor: pointer; transition: all 0.2s;
+      background: transparent; color: var(--text-muted);
+    }
+    .toggle-btn.active { background: var(--accent-button); color: #fff; }
+
+    main { padding: 24px 0; }
+
+    .grid { display: grid; gap: 16px; margin-bottom: 24px; }
+    .grid-3 { grid-template-columns: 1fr; }
+    @media (min-width: 768px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 1024px) { .grid-3 { grid-template-columns: 1fr 1fr 1fr; } }
+
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+    }
+    .card-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+    .card-subtitle { font-size: 11px; color: var(--text-muted); }
+
+    /* Capacity meter */
+    .capacity-value { font-size: 30px; font-weight: 700; margin: 8px 0; }
+    .capacity-max { font-size: 16px; color: var(--text-muted); }
+    .progress-bar { width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin: 12px 0 8px; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .progress-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+    .status-badge {
+      font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 12px;
+    }
+
+    /* Assessment */
+    .assessment {
+      border-radius: 12px; padding: 16px; border: 1px solid; margin-bottom: 24px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .assessment-icon { font-size: 24px; }
+    .assessment-msg { font-size: 13px; font-weight: 500; }
+    .assessment-tip { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+    .assessment-meta { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+    /* Quick add */
+    .quick-add-trigger {
+      width: 100%; padding: 12px; border-radius: 12px;
+      border: 1px dashed var(--border); background: transparent;
+      color: var(--text-muted); font-size: 13px; cursor: pointer;
+      margin-bottom: 24px; transition: border-style 0.2s;
+    }
+    .quick-add-trigger:hover { border-style: solid; }
+
+    .quick-add-form {
+      display: none; grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 12px; padding: 16px; border-radius: 12px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .quick-add-form.open { display: grid; }
+    @media (max-width: 640px) { .quick-add-form.open { grid-template-columns: 1fr; } }
+
+    select, input[type="number"], input[type="text"] {
+      padding: 8px 12px; border-radius: 8px; font-size: 13px;
+      border: 1px solid var(--border); background: var(--bg-secondary);
+      color: var(--text-primary); outline: none; width: 100%;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    .btn-primary {
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      background: var(--accent-button); color: #fff; border: none; cursor: pointer;
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-cancel {
+      padding: 8px 12px; border-radius: 8px; font-size: 13px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-muted); cursor: pointer;
+    }
+
+    /* Entry list */
+    .entry-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px;
+      border-radius: 8px; background: var(--bg-secondary); margin-bottom: 8px;
+    }
+    .entry-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .entry-content { flex: 1; min-width: 0; }
+    .entry-label { font-size: 13px; font-weight: 500; }
+    .entry-hours { font-size: 11px; color: var(--text-muted); margin-left: 8px; }
+    .entry-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .entry-delete {
+      background: none; border: none; color: var(--danger); cursor: pointer;
+      font-size: 12px; opacity: 0; transition: opacity 0.2s; padding: 4px 8px;
+    }
+    .entry-item:hover .entry-delete { opacity: 1; }
+
+    .chart-container { position: relative; width: 100%; height: 220px; }
+    .chart-container-lg { height: 260px; }
+
+    footer {
+      border-top: 1px solid var(--border); padding: 16px 0; margin-top: 32px;
+      text-align: center; font-size: 11px; color: var(--text-muted);
+    }
+
+    .empty-state { text-align: center; padding: 32px 0; }
+    .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div id="banner" class="banner">
+  <strong>Demo Mode</strong> — You can add entries and explore freely. No data is stored or sent anywhere — everything resets when you close the tab.
+  <button class="banner-close" onclick="document.getElementById('banner').style.display='none'">✕</button>
+</div>
+
+<header>
+  <div class="container">
+    <div class="header-content">
+      <div>
+        <div class="header-title">Workload Tracker</div>
+        <div class="header-date" id="header-date"></div>
+      </div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btn-daily" onclick="setView('daily')">Today</button>
+        <button class="toggle-btn" id="btn-weekly" onclick="setView('weekly')">This Week</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container">
+    <!-- Assessment -->
+    <div id="assessment" class="assessment"></div>
+
+    <!-- Quick add -->
+    <button class="quick-add-trigger" id="quick-add-trigger" onclick="openQuickAdd()">+ Quick add entry</button>
+    <div class="quick-add-form" id="quick-add-form">
+      <select id="qa-category">
+        <option value="deep-work">Deep Work</option>
+        <option value="meetings">Meetings</option>
+        <option value="code-review">Code Review</option>
+        <option value="planning">Planning</option>
+        <option value="admin">Admin</option>
+        <option value="mentoring">Mentoring</option>
+        <option value="learning">Learning</option>
+        <option value="other">Other</option>
+      </select>
+      <input type="number" id="qa-hours" placeholder="Hours" step="0.25" min="0.25" max="24">
+      <input type="text" id="qa-desc" placeholder="Description (optional)">
+      <div style="display:flex;gap:8px;">
+        <button class="btn-primary" onclick="submitQuickAdd()">Add</button>
+        <button class="btn-cancel" onclick="closeQuickAdd()">✕</button>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="grid grid-3">
+      <div class="card" id="capacity-card"></div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title" id="pie-title">Today's Breakdown</span>
+          <span class="card-subtitle" id="pie-total"></span>
+        </div>
+        <div class="chart-container"><canvas id="pie-chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Hours per Day</span>
+          <span class="card-subtitle" id="bar-subtitle"></span>
+        </div>
+        <div class="chart-container"><canvas id="bar-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Trend chart -->
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-header">
+        <span class="card-title">Weekly Trends</span>
+        <span class="card-subtitle">Past 7 days</span>
+      </div>
+      <div class="chart-container chart-container-lg"><canvas id="trend-chart"></canvas></div>
+    </div>
+
+    <!-- Entry list -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" id="list-title">Today's Log</span>
+        <span class="card-subtitle" id="list-count"></span>
+      </div>
+      <div id="entry-list"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container">Workload Tracker Demo · No data is stored · Everything resets on page close</div>
+</footer>
+
+<script>
+// --- Data ---
+const CATEGORIES = {
+  "deep-work": { label: "Deep Work", color: "#818cf8" },
+  "meetings": { label: "Meetings", color: "#f59e0b" },
+  "code-review": { label: "Code Review", color: "#10b981" },
+  "planning": { label: "Planning", color: "#8b5cf6" },
+  "admin": { label: "Admin", color: "#8892a4" },
+  "mentoring": { label: "Mentoring", color: "#ec4899" },
+  "learning": { label: "Learning", color: "#06b6d4" },
+  "other": { label: "Other", color: "#78716c" },
+};
+
+const MAX_HOURS = 8;
+const WARNING_THRESHOLD = 0.85;
+
+function getDateStr(daysAgo) {
+  const d = new Date(); d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split("T")[0];
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+let entries = [
+  { id: "1", date: getDateStr(0), category: "deep-work", hours: 3, description: "Feature implementation — auth module" },
+  { id: "2", date: getDateStr(0), category: "meetings", hours: 2, description: "Sprint planning + 1:1 with manager" },
+  { id: "3", date: getDateStr(0), category: "code-review", hours: 1.5, description: "PR reviews for team" },
+  { id: "4", date: getDateStr(1), category: "deep-work", hours: 4, description: "API endpoint development" },
+  { id: "5", date: getDateStr(1), category: "meetings", hours: 1.5, description: "Design review" },
+  { id: "6", date: getDateStr(1), category: "mentoring", hours: 1, description: "Pair programming with junior dev" },
+  { id: "7", date: getDateStr(1), category: "learning", hours: 1, description: "Reading about caching strategies" },
+  { id: "8", date: getDateStr(2), category: "meetings", hours: 4, description: "All-hands + retro + stakeholder sync" },
+  { id: "9", date: getDateStr(2), category: "deep-work", hours: 2, description: "Bug fixes" },
+  { id: "10", date: getDateStr(2), category: "admin", hours: 1.5, description: "Documentation updates" },
+  { id: "11", date: getDateStr(3), category: "deep-work", hours: 5, description: "Database migration work" },
+  { id: "12", date: getDateStr(3), category: "code-review", hours: 2, description: "Large PR review" },
+  { id: "13", date: getDateStr(3), category: "planning", hours: 1, description: "Sprint backlog grooming" },
+  { id: "14", date: getDateStr(4), category: "deep-work", hours: 3.5, description: "Frontend component library" },
+  { id: "15", date: getDateStr(4), category: "meetings", hours: 2.5, description: "Cross-team alignment" },
+  { id: "16", date: getDateStr(4), category: "mentoring", hours: 1.5, description: "Code walkthrough for new hire" },
+  { id: "17", date: getDateStr(5), category: "deep-work", hours: 4.5, description: "Performance optimization" },
+  { id: "18", date: getDateStr(5), category: "learning", hours: 1.5, description: "Conference talk recordings" },
+  { id: "19", date: getDateStr(5), category: "admin", hours: 1, description: "Expense reports" },
+  { id: "20", date: getDateStr(6), category: "deep-work", hours: 2, description: "Prototyping new feature" },
+  { id: "21", date: getDateStr(6), category: "meetings", hours: 3.5, description: "Client demo + feedback session" },
+  { id: "22", date: getDateStr(6), category: "code-review", hours: 1, description: "Quick PR approvals" },
+  { id: "23", date: getDateStr(6), category: "planning", hours: 1.5, description: "Roadmap discussion" },
+];
+
+let currentView = "daily";
+let pieChart, barChart, trendChart;
+
+// --- Helpers ---
+const today = getDateStr(0);
+const weekAgo = getDateStr(6);
+
+function getTodayEntries() { return entries.filter(e => e.date === today); }
+function getWeekEntries() { return entries.filter(e => e.date >= weekAgo && e.date <= today); }
+function getDisplayEntries() { return currentView === "daily" ? getTodayEntries() : getWeekEntries(); }
+
+// --- Render ---
+function render() {
+  renderHeader();
+  renderAssessment();
+  renderCapacity();
+  renderPieChart();
+  renderBarChart();
+  renderTrendChart();
+  renderEntryList();
+}
+
+function renderHeader() {
+  document.getElementById("header-date").textContent = new Date(today + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+}
+
+function renderAssessment() {
+  const todayE = getTodayEntries();
+  const total = todayE.reduce((s, e) => s + e.hours, 0);
+  const catHours = {};
+  todayE.forEach(e => { catHours[e.category] = (catHours[e.category] || 0) + e.hours; });
+
+  const deepPct = total > 0 ? ((catHours["deep-work"] || 0) / total) * 100 : 0;
+  const meetPct = total > 0 ? ((catHours["meetings"] || 0) / total) * 100 : 0;
+
+  let msg, icon, tip, type;
+  if (total === 0) { icon = "📝"; msg = "No entries logged yet today. Ready to start tracking?"; type = "neutral"; }
+  else if (total > MAX_HOURS) { icon = "⚡"; msg = `You've logged ${total.toFixed(1)}h — over your ${MAX_HOURS}h capacity.`; tip = "Consider what you can delegate or defer tomorrow."; type = "warning"; }
+  else if (meetPct >= 50) { icon = "💡"; msg = `Meetings took ${(catHours["meetings"]||0).toFixed(1)}h (${meetPct.toFixed(0)}%) of your day.`; tip = "Try to protect a 2-hour focus block tomorrow morning."; type = "warning"; }
+  else if (deepPct >= 50) { icon = "🎯"; msg = `${deepPct.toFixed(0)}% deep work today — solid focus session.`; type = "positive"; }
+  else { icon = "✨"; msg = `Balanced day so far. ${total.toFixed(1)}h logged across ${Object.keys(catHours).length} categories.`; type = "neutral"; }
+
+  const colors = { positive: ["rgba(52,211,153,0.08)", "rgba(52,211,153,0.2)"], neutral: ["rgba(129,140,248,0.08)", "rgba(129,140,248,0.2)"], warning: ["rgba(251,191,36,0.08)", "rgba(251,191,36,0.2)"] };
+  const [bg, border] = colors[type];
+
+  document.getElementById("assessment").innerHTML = `
+    <span class="assessment-icon">${icon}</span>
+    <div>
+      <div class="assessment-msg">${msg}</div>
+      ${tip ? `<div class="assessment-tip">${tip}</div>` : ""}
+      ${total > 0 ? `<div class="assessment-meta">${todayE.length} ${todayE.length === 1 ? "entry" : "entries"} logged · ${total.toFixed(1)}h total</div>` : ""}
+    </div>`;
+  document.getElementById("assessment").style.background = bg;
+  document.getElementById("assessment").style.borderColor = border;
+}
+
+function renderCapacity() {
+  const total = getTodayEntries().reduce((s, e) => s + e.hours, 0);
+  const pct = Math.min((total / MAX_HOURS) * 100, 100);
+  const isOver = total > MAX_HOURS;
+  const isWarn = pct >= WARNING_THRESHOLD * 100;
+  const color = isOver ? "var(--danger)" : isWarn ? "var(--warning)" : "var(--accent)";
+  const label = isOver ? "Over capacity" : isWarn ? "Nearing capacity" : "On track";
+
+  document.getElementById("capacity-card").innerHTML = `
+    <div class="card-header">
+      <span class="card-title">Daily Capacity</span>
+      <span class="status-badge" style="color:${color};background:${color}20">${label}</span>
+    </div>
+    <div><span class="capacity-value" style="color:var(--text-primary)">${total.toFixed(1)}</span><span class="capacity-max"> / ${MAX_HOURS}h</span></div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+    <div class="progress-labels"><span>0h</span><span>${MAX_HOURS}h</span></div>`;
+}
+
+function renderPieChart() {
+  const display = getDisplayEntries();
+  const catHours = {};
+  display.forEach(e => { catHours[e.category] = (catHours[e.category] || 0) + e.hours; });
+  const total = display.reduce((s, e) => s + e.hours, 0);
+
+  const labels = Object.keys(catHours).map(k => CATEGORIES[k].label);
+  const data = Object.values(catHours);
+  const colors = Object.keys(catHours).map(k => CATEGORIES[k].color);
+
+  document.getElementById("pie-title").textContent = currentView === "daily" ? "Today's Breakdown" : "Weekly Breakdown";
+  document.getElementById("pie-total").textContent = total.toFixed(1) + "h total";
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById("pie-chart"), {
+    type: "doughnut",
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: "60%",
+      plugins: { legend: { position: "bottom", labels: { color: "#94a3b8", font: { size: 11 }, padding: 12, usePointStyle: true, pointStyle: "circle" } } }
+    }
+  });
+}
+
+function renderBarChart() {
+  const week = getWeekEntries();
+  const dateHours = {};
+  week.forEach(e => { dateHours[e.date] = (dateHours[e.date] || 0) + e.hours; });
+
+  const sorted = Object.entries(dateHours).sort(([a], [b]) => a.localeCompare(b));
+  const labels = sorted.map(([d]) => formatDate(d));
+  const data = sorted.map(([, h]) => h);
+
+  document.getElementById("bar-subtitle").textContent = `Capacity: ${MAX_HOURS}h/day`;
+
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById("bar-chart"), {
+    type: "bar",
+    data: { labels, datasets: [{ data, backgroundColor: "#818cf8", borderRadius: 4, maxBarThickness: 40 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { display: false }, ticks: { color: "#8892a4", font: { size: 11 } } },
+        y: { grid: { color: "#33415520" }, ticks: { color: "#8892a4", font: { size: 11 }, callback: v => v + "h" } }
+      },
+      plugins: {
+        legend: { display: false },
+        annotation: { annotations: { line1: { type: "line", yMin: MAX_HOURS, yMax: MAX_HOURS, borderColor: "#f8717180", borderDash: [4, 4] } } }
+      }
+    }
+  });
+}
+
+function renderTrendChart() {
+  const week = getWeekEntries();
+  const dateMap = {};
+  const allCats = new Set();
+  week.forEach(e => {
+    if (!dateMap[e.date]) dateMap[e.date] = {};
+    dateMap[e.date][e.category] = (dateMap[e.date][e.category] || 0) + e.hours;
+    allCats.add(e.category);
+  });
+
+  const sorted = Object.entries(dateMap).sort(([a], [b]) => a.localeCompare(b));
+  const labels = sorted.map(([d]) => formatDate(d));
+  const datasets = [...allCats].map(cat => ({
+    label: CATEGORIES[cat].label,
+    data: sorted.map(([, cats]) => cats[cat] || 0),
+    backgroundColor: CATEGORIES[cat].color + "66",
+    borderColor: CATEGORIES[cat].color,
+    borderWidth: 1.5,
+    fill: true,
+    tension: 0.3,
+  }));
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById("trend-chart"), {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: "#33415520" }, ticks: { color: "#8892a4", font: { size: 11 } }, stacked: true },
+        y: { grid: { color: "#33415520" }, ticks: { color: "#8892a4", font: { size: 11 }, callback: v => v + "h" }, stacked: true }
+      },
+      plugins: { legend: { position: "top", labels: { color: "#94a3b8", font: { size: 11 }, usePointStyle: true, pointStyle: "circle", padding: 12 } } }
+    }
+  });
+}
+
+function renderEntryList() {
+  const display = getDisplayEntries();
+  document.getElementById("list-title").textContent = currentView === "daily" ? "Today's Log" : "This Week's Log";
+  document.getElementById("list-count").textContent = `${display.length} ${display.length === 1 ? "entry" : "entries"}`;
+
+  if (display.length === 0) {
+    document.getElementById("entry-list").innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div><div style="color:var(--text-muted);font-size:13px">No entries yet. Use Quick Add above to get started.</div></div>';
+    return;
+  }
+
+  document.getElementById("entry-list").innerHTML = display.map(e => `
+    <div class="entry-item">
+      <div class="entry-dot" style="background:${CATEGORIES[e.category].color}"></div>
+      <div class="entry-content">
+        <div><span class="entry-label">${CATEGORIES[e.category].label}</span><span class="entry-hours">${e.hours}h</span></div>
+        ${e.description ? `<div class="entry-desc">${e.description}</div>` : ""}
+      </div>
+      <button class="entry-delete" onclick="deleteEntry('${e.id}')">✕</button>
+    </div>`).join("");
+}
+
+// --- Actions ---
+function setView(view) {
+  currentView = view;
+  document.getElementById("btn-daily").classList.toggle("active", view === "daily");
+  document.getElementById("btn-weekly").classList.toggle("active", view === "weekly");
+  render();
+}
+
+function openQuickAdd() {
+  document.getElementById("quick-add-trigger").style.display = "none";
+  document.getElementById("quick-add-form").classList.add("open");
+}
+
+function closeQuickAdd() {
+  document.getElementById("quick-add-trigger").style.display = "block";
+  document.getElementById("quick-add-form").classList.remove("open");
+}
+
+function submitQuickAdd() {
+  const cat = document.getElementById("qa-category").value;
+  const hours = parseFloat(document.getElementById("qa-hours").value);
+  const desc = document.getElementById("qa-desc").value;
+  if (!hours || hours <= 0) return;
+
+  entries.push({ id: Date.now().toString(36), date: today, category: cat, hours, description: desc });
+  document.getElementById("qa-hours").value = "";
+  document.getElementById("qa-desc").value = "";
+  closeQuickAdd();
+  render();
+}
+
+function deleteEntry(id) {
+  entries = entries.filter(e => e.id !== id);
+  render();
+}
+
+// --- Init ---
+render();
+</script>
+</body>
+</html>
